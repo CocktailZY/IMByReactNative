@@ -1,6 +1,7 @@
 package rnxmpp.service;
 
 import android.support.annotation.Nullable;
+import android.util.JsonReader;
 import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
@@ -12,6 +13,7 @@ import com.facebook.react.modules.core.RCTNativeAppEventEmitter;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Presence;
+import org.jivesoftware.smack.packet.Stanza;
 import org.jivesoftware.smack.packet.UnparsedIQ;
 import org.jivesoftware.smack.roster.Roster;
 import org.jivesoftware.smack.roster.RosterEntry;
@@ -76,12 +78,12 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
 //        params.putString("from", message.getFrom());
 //        params.putString("src", message.toXML().toString());
 //        sendEvent(reactContext, RNXMPP_MESSAGE, params);
-
         String temp = message.toXML().toString();
         Log.e(TAG,"messageXML-------------------------");
         Log.e(TAG,temp);
         try{
             JSONObject obj = XML.toJSONObject(temp);
+            obj.put("123",message.getExtensions());
             Log.e(TAG,"message-------------------------");
             Log.e(TAG,obj.toString());
             WritableMap params = Arguments.createMap();
@@ -91,25 +93,48 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
             params.putString("from", message.getFrom());
             params.putString("src", message.toXML().toString());
             obj=obj.getJSONObject("message");
+            if(obj.has("id")){
+                Log.e(TAG,"id-----------------");
+                Log.e(TAG,obj.toString());
+                Log.e(TAG,obj.getString("id"));
+                params.putString("id", obj.getString("id"));
+            }
             if(obj.has("x")){
                 if(obj.getJSONObject("x").has("status")){
+                    Log.e(TAG,obj.getJSONObject("x").toString());
                     Object tempobj = obj.getJSONObject("x").get("status");
+                    Log.e(TAG,tempobj.toString());
                     params.putString("code", tempobj.toString());
                     /*if(tempobj instanceof String){
                         presenceMap.putString("code", tempobj.toString());
                     }else if(tempobj instanceof JSONArray){
                         presenceMap.putString("code", tempobj.toString());
                     }*/
+                }else if(obj.getJSONObject("x").has("invite")){
+                    JSONObject tempInvite = obj.getJSONObject("x").getJSONObject("invite");
+                    Log.e(TAG,"Invite---------------------");
+                    Log.e(TAG,tempInvite.toString());
+                    if(tempInvite.has("reason")){
+                        params.putString("invite", tempInvite.getString("from"));
+                    }
                 }
             }else{
+                Log.e(TAG,"进入到message的else");
                 params.putString("code", null);
+                if(obj.has("removemsg")){
+                    JSONObject temp1 = new JSONObject(obj.getJSONObject("removemsg").getString("removeMsg"));
+                    params.putString("removeMsgId", temp1.getString("removeMsgId"));
+                    params.putString("removeName", temp1.getString("trueName"));
+                }
             }
+            Log.e(TAG,"message的结果："+params.toString());
             sendEvent(reactContext, RNXMPP_MESSAGE, params);
         }catch (Exception e){
             e.printStackTrace();
         }
 
     }
+
 
     @Override
     public void onRosterReceived(Roster roster) {
@@ -181,17 +206,24 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
             presenceMap.putString("mode", presence.getMode().toString());
             obj=obj.getJSONObject("presence");
             if(obj.has("x")){
-                if(obj.getJSONObject("x").has("status")){
-                    Object tempobj = obj.getJSONObject("x").get("status");
-                    presenceMap.putString("code", tempobj.toString());
+                Object tempx = obj.get("x");
+                if(tempx instanceof JSONObject){
+                    if(obj.getJSONObject("x").has("status")){
+                        Object tempobj = obj.getJSONObject("x").get("status");
+                        presenceMap.putString("code", tempobj.toString());
                     /*if(tempobj instanceof String){
                         presenceMap.putString("code", tempobj.toString());
                     }else if(tempobj instanceof JSONArray){
                         presenceMap.putString("code", tempobj.toString());
                     }*/
+                    }
+                }else{
+                    presenceMap.putString("code", null);
                 }
-            }else{
-                presenceMap.putString("code", null);
+            }
+            if(obj.has("to")){
+                Object tempx = obj.get("to");
+                presenceMap.putString("to", tempx.toString());
             }
             sendEvent(reactContext, RNXMPP_PRESENCE, presenceMap);
         }catch (Exception e){
