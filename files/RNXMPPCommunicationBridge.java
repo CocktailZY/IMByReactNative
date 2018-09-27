@@ -225,6 +225,13 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
                 Object tempx = obj.get("to");
                 presenceMap.putString("to", tempx.toString());
             }
+            if(obj.has("headchang")){
+                JSONObject headchang = obj.getJSONObject("headchang");
+
+                presenceMap.putString("ischange", headchang.getString("ischange"));
+                presenceMap.putString("userid", headchang.getString("userid"));
+                presenceMap.putString("newphotoid", headchang.getString("newphotoid"));
+            }
             sendEvent(reactContext, RNXMPP_PRESENCE, presenceMap);
         }catch (Exception e){
             e.printStackTrace();
